@@ -842,10 +842,15 @@ def add_task():
     scheduled_time = normalize_dt(request.form.get('scheduled_time')) or datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     category = request.form.get('category', 'عام')
     priority = request.form.get('priority', 'medium')
-    duration = int(request.form.get('duration', 30))
+    try:
+        duration = int(request.form.get('duration', 30))
+        repeat_count = int(request.form.get('repeat_count', 0) or 0)
+    except (TypeError, ValueError):
+        return jsonify({'status': 'error', 'message': 'Invalid duration or repeat count.'}), 400
+    if not 1 <= duration <= 1440 or not 0 <= repeat_count <= 365:
+        return jsonify({'status': 'error', 'message': 'Duration must be 1-1440 minutes and repeat count 0-365.'}), 400
 
     repeat_type = request.form.get('repeat_type', 'none')  # none / daily / count
-    repeat_count = int(request.form.get('repeat_count', 0) or 0)
 
     if repeat_type == 'none' or repeat_count <= 1:
         q('INSERT INTO tasks (title, category, scheduled_time, priority, duration, repeat_type) VALUES (?,?,?,?,?,?)',
@@ -891,7 +896,12 @@ def edit_task(tid):
     scheduled_time = normalize_dt(request.form.get('scheduled_time'))
     category = request.form.get('category', 'عام')
     priority = request.form.get('priority', 'medium')
-    duration = int(request.form.get('duration', 30))
+    try:
+        duration = int(request.form.get('duration', 30))
+    except (TypeError, ValueError):
+        return jsonify({'status': 'error', 'message': 'Invalid duration.'}), 400
+    if not 1 <= duration <= 1440:
+        return jsonify({'status': 'error', 'message': 'Duration must be between 1 and 1440 minutes.'}), 400
 
     if title:
         # لو الوقت اتغير، لازم نصفر أعلام الإشعارات عشان النظام يبعتها تاني في الوقت الجديد
