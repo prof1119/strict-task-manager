@@ -56,9 +56,9 @@ def add_csrf_fields(response):
         token = session['_csrf_token']
         meta = '<meta name="csrf-token" content="' + token + '">'
         if '<head>' in html and 'name="csrf-token"' not in html:
-            html = html.replace('<head>', '<head>\\n    ' + meta, 1)
+            html = html.replace('<head>', '<head>\n    ' + meta, 1)
         hidden = '<input type="hidden" name="_csrf_token" value="' + token + '">'
-        html = re.sub(r'(<form\\b(?=[^>]*\\bmethod=["\\']?POST)[^>]*>)', lambda m: m.group(1) + hidden, html, flags=re.IGNORECASE)
+        html = re.sub(r'(<form\b(?=[^>]*\bmethod=["\']?POST)[^>]*>)', lambda m: m.group(1) + hidden, html, flags=re.IGNORECASE)
         response.set_data(html)
     return response
 
