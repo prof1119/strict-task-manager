@@ -984,16 +984,26 @@ def add_course():
     name = request.form.get('name', '').strip()
     code = request.form.get('code', '').strip()
     if name and code:
-        td = int(request.form.get('total_days', 1))
+        if len(name) > 120 or len(code) > 40:
+            return jsonify({'status': 'error', 'message': 'Course name/code is too long.'}), 400
         st = request.form.get('start_time', '09:00')
         sd = request.form.get('start_date', date.today().strftime('%Y-%m-%d'))
-        total_hours = float(request.form.get('total_hours', 0))
-        daily_hours_raw = request.form.get('daily_hours')
-        daily_hours = float(daily_hours_raw) if daily_hours_raw else round(total_hours / td, 2) if td else 0
+        try:
+            td = int(request.form.get('total_days', 1))
+            total_hours = float(request.form.get('total_hours', 0))
+            daily_hours_raw = request.form.get('daily_hours')
+            daily_hours = float(daily_hours_raw) if daily_hours_raw else round(total_hours / td, 2) if td > 0 else 0
+            start_dt = datetime.strptime(f"{sd} {st}", '%Y-%m-%d %H:%M')
+        except (TypeError, ValueError, ZeroDivisionError):
+            return jsonify({'status': 'error', 'message': 'Invalid course dates or numeric values.'}), 400
+        if not 1 <= td <= 3650 or not 0 < total_hours <= 10000 or not 0 < daily_hours <= 24:
+            return jsonify({'status': 'error', 'message': 'Course days/hours are outside the allowed range.'}), 400
 
         # وضع التكرار: everyday (كل يوم) أو specific_days (أيام معينة زي سبت/اتنين/أربع)
         repeat_mode = request.form.get('repeat_mode', 'everyday')
         specific_days = request.form.getlist('specific_days')  # قائمة أرقام أيام الأسبوع 0=الاثنين ... 6=الأحد (Python weekday)
+        if repeat_mode not in ('everyday', 'specific_days') or any(day not in {'0','1','2','3','4','5','6'} for day in specific_days):
+            return jsonify({'status': 'error', 'message': 'Invalid repeat schedule.'}), 400
         repeat_days_str = ','.join(specific_days) if repeat_mode == 'specific_days' and specific_days else ''
 
         cid = q('''INSERT INTO courses (name, code, total_hours, total_days, daily_hours, start_time, start_date, repeat_days)
@@ -1001,7 +1011,6 @@ def add_course():
                 (name, code, total_hours, td, daily_hours, st, sd, repeat_days_str), fetch=False)
 
         session_minutes = int(round(daily_hours * 60)) if daily_hours else 60
-        start_dt = datetime.strptime(f"{sd} {st}", '%Y-%m-%d %H:%M')
 
         if repeat_mode == 'specific_days' and specific_days:
             allowed_weekdays = {int(d) for d in specific_days}
