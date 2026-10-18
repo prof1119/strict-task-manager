@@ -153,7 +153,7 @@ LOGIN_HTML = '''<!DOCTYPE html>
         <input type="password" name="password" placeholder="••••••••" autofocus required>
         <button type="submit">دخول ⚡</button>
     </form>
-    <p class="hint">أبو حماد · الشرقية · مصر</p>
+    <p class="hint">إدارة المهام اليومية</p>
 </div>
 </body>
 </html>'''
