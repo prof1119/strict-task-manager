@@ -70,15 +70,16 @@ APP_PASSWORD = os.environ.get('APP_PASSWORD', '')
 API = f"https://api.telegram.org/bot{BOT_TOKEN}" if BOT_TOKEN else ''
 DB = os.environ.get('DATABASE_PATH', 'tasks.db')
 
-# إحداثيات السناجرة / أبو حماد - الشرقية (دقيقة جدًا)
-PRAYER_LAT    = 30.5236   # خط العرض
-PRAYER_LNG    = 31.6722   # خط الطول
-PRAYER_METHOD = 5         # Egyptian General Authority of Survey
+# Configure the location through environment variables instead of publishing a personal location.
+# Cairo is only a generic fallback; set these values for the intended city.
+PRAYER_LAT    = float(os.environ.get('PRAYER_LAT', '30.0444'))
+PRAYER_LNG    = float(os.environ.get('PRAYER_LNG', '31.2357'))
+PRAYER_METHOD = int(os.environ.get('PRAYER_METHOD', '5'))
 PRAYER_NAMES_AR = {
     'Fajr': 'الفجر', 'Dhuhr': 'الظهر', 'Asr': 'العصر',
     'Maghrib': 'المغرب', 'Isha': 'العشاء'
 }
-CITY = "أبو حماد - السناجرة"
+CITY = os.environ.get('CITY', 'Cairo, Egypt')
 
 if not BOT_TOKEN or not CHAT_ID:
     logger.warning("Telegram notifications are disabled: set BOT_TOKEN and CHAT_ID to enable them.")
