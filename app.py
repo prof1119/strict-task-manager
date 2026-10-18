@@ -21,15 +21,26 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'strict-manager-2026-xK9mP')
+# Never ship real credentials or predictable secrets in source control.
+_secret_key = os.environ.get('SECRET_KEY')
+if not _secret_key:
+    _secret_key = os.urandom(32).hex()
+    logger.warning('SECRET_KEY is not set; sessions will be invalidated after restart. Set it in the environment.')
+app.config.update(
+    SECRET_KEY=_secret_key,
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+    SESSION_COOKIE_SECURE=os.environ.get('COOKIE_SECURE', '0').lower() in ('1', 'true', 'yes'),
+    PERMANENT_SESSION_LIFETIME=timedelta(hours=12),
+)
 
 # ==================== إعدادات ====================
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "8901942264:AAH4wO13A1kwgm_kUJ1AoFUBAnATvAe7avg")
-CHAT_ID   = os.environ.get("CHAT_ID", "8135255786")
-# باسورد الدخول للموقع - غيّره من متغير البيئة APP_PASSWORD أو من هنا مباشرة
-APP_PASSWORD = os.environ.get("APP_PASSWORD", "admin123")
-API = f"https://api.telegram.org/bot{BOT_TOKEN}"
-DB  = 'tasks.db'
+# Set these values in the hosting environment; never commit actual secrets.
+BOT_TOKEN = os.environ.get('BOT_TOKEN', '').strip()
+CHAT_ID = os.environ.get('CHAT_ID', '').strip()
+APP_PASSWORD = os.environ.get('APP_PASSWORD', '')
+API = f"https://api.telegram.org/bot{BOT_TOKEN}" if BOT_TOKEN else ''
+DB = os.environ.get('DATABASE_PATH', 'tasks.db')
 
 # إحداثيات السناجرة / أبو حماد - الشرقية (دقيقة جدًا)
 PRAYER_LAT    = 30.5236   # خط العرض
@@ -42,7 +53,9 @@ PRAYER_NAMES_AR = {
 CITY = "أبو حماد - السناجرة"
 
 if not BOT_TOKEN or not CHAT_ID:
-    logger.warning("⚠️ BOT_TOKEN أو CHAT_ID مش متظبطين!")
+    logger.warning("Telegram notifications are disabled: set BOT_TOKEN and CHAT_ID to enable them.")
+if not APP_PASSWORD:
+    logger.warning("APP_PASSWORD is not set. Login will reject all passwords until it is configured.")
 
 # ==================== نظام اللوجن ====================
 def login_required(f):
@@ -128,7 +141,7 @@ def login():
         error = 'كلمة المرور غلط، حاول تاني'
     return render_template_string(LOGIN_HTML, error=error)
 
-@app.route('/logout')
+@app.route('/logout', methods=['GET', 'POST'])
 def logout():
     session.clear()
     return redirect('/login')
@@ -1848,8 +1861,11 @@ def start_background_jobs():
     # جيب مواقيت الصلاة فورًا من أول تشغيل
     threading.Thread(target=ensure_prayer_times_synced, daemon=True).start()
 
-    threading.Thread(target=poll_updates, daemon=True).start()
-    logger.info("✅ Thread استقبال أزرار تيليجرام اشتغل")
+    if BOT_TOKEN and CHAT_ID:
+        threading.Thread(target=poll_updates, daemon=True).start()
+        logger.info("Telegram callback polling thread started")
+    else:
+        logger.info("Telegram polling skipped because BOT_TOKEN/CHAT_ID are not configured")
 
 # ==================== تشغيل ====================
 # ==================== تشغيل التطبيق والخدمات ====================
