@@ -141,7 +141,7 @@ def login():
         error = 'كلمة المرور غلط، حاول تاني'
     return render_template_string(LOGIN_HTML, error=error)
 
-@app.route('/logout', methods=['GET', 'POST'])
+@app.route('/logout', methods=['POST'])
 def logout():
     session.clear()
     return redirect('/login')
@@ -1294,7 +1294,7 @@ HTML = '''
                 <div class="bot"><span class="dot"></span>🤖 متصل</div>
                 <button class="btn btn-p" onclick="openModal('taskModal')">➕ مهمة</button>
                 <button class="btn btn-s" onclick="openModal('courseModal')">📚 كورس</button>
-                <a href="/logout" class="btn btn-d" title="خروج">🚪</a>
+                <form method="POST" action="/logout" style="display:inline"><button type="submit" class="btn btn-d" title="خروج" aria-label="تسجيل الخروج">🚪</button></form>
             </div>
         </div>
     </header>
