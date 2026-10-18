@@ -96,6 +96,7 @@ A `.env.example` file documents the variable names. It is a template only, not a
 ## ⚠️ Deployment notes
 
 - Use HTTPS and set `COOKIE_SECURE=1` in production.
+- The development server binds to `127.0.0.1` by default. Set `HOST` and `PORT` only when you intentionally configure a deployment environment; do not expose the app directly to the internet.
 - Do not use a weak/default password or share the app publicly.
 - Run a single application worker while the scheduler and Telegram polling run inside the app. Multiple Gunicorn workers can duplicate background jobs and polling.
 - This is not yet a multi-user application. Review authorization, CSRF protection, request validation, and error handling before exposing it to the internet.
