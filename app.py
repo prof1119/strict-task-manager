@@ -864,7 +864,7 @@ def add_task():
 
     return redirect('/')
 
-@app.route('/fetch_prayers')
+@app.route('/fetch_prayers', methods=['POST'])
 @login_required
 def fetch_prayers_manual():
     """جلب يدوي لمواقيت الصلاة من الواجهة"""
@@ -1523,7 +1523,7 @@ HTML = '''
                     <span>🕌</span>
                     <h3>لم يتم جلب مواقيت الصلاة بعد</h3>
                     <p style="color:var(--text-dim);margin-top:10px">سيتم الجلب تلقائيًا عند اتصال السيرفر بالإنترنت</p>
-                    <a href="/fetch_prayers" class="btn btn-p mt20" style="margin-top:20px">🔄 جلب يدوي</a>
+                    <form method="POST" action="/fetch_prayers" style="display:inline"><button type="submit" class="btn btn-p mt20" style="margin-top:20px">🔄 جلب يدوي</button></form>
                 </div>
                 {% endif %}
             </div>
@@ -1625,7 +1625,7 @@ HTML = '''
                     <div class="tc mt20" style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center">
                         <button class="btn btn-p btn-lg" onclick="testBot()">🔬 تشخيص شامل</button>
                         <button class="btn btn-w btn-lg" onclick="forceCheck()">⚡ فحص فوري</button>
-                        <a href="/fetch_prayers" class="btn btn-s btn-lg">🕌 جلب مواقيت الصلاة</a>
+                        <form method="POST" action="/fetch_prayers" style="display:inline"><button type="submit" class="btn btn-s btn-lg">🕌 جلب مواقيت الصلاة</button></form>
                     </div>
                     <p id="tr" class="mt20"></p>
                 </div>
