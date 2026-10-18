@@ -162,7 +162,8 @@ LOGIN_HTML = '''<!DOCTYPE html>
 def login():
     error = None
     if request.method == 'POST':
-        if request.form.get('password') == APP_PASSWORD:
+        if APP_PASSWORD and request.form.get('password') == APP_PASSWORD:
+            session.clear()  # Rotate the session on successful authentication.
             session['logged_in'] = True
             session.permanent = True
             return redirect('/')
@@ -774,8 +775,8 @@ def poll_updates():
                         last_id = upd['update_id']
                         if 'callback_query' in upd:
                             process_callback(upd['callback_query']['data'])
-        except:
-            pass
+        except Exception:
+            logger.exception('Telegram update polling failed; retrying shortly')
         time.sleep(2)
 
 # ==================== الصفحة الرئيسية ====================
