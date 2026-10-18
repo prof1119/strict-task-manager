@@ -16,6 +16,9 @@ import os
 import time
 import threading
 import functools
+import secrets
+import hmac
+import re
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -33,6 +36,31 @@ app.config.update(
     SESSION_COOKIE_SECURE=os.environ.get('COOKIE_SECURE', '0').lower() in ('1', 'true', 'yes'),
     PERMANENT_SESSION_LIFETIME=timedelta(hours=12),
 )
+
+@app.before_request
+def protect_state_changes():
+    """Validate a per-session CSRF token on state-changing requests."""
+    if not session.get('_csrf_token'):
+        session['_csrf_token'] = secrets.token_urlsafe(32)
+    if request.method in ('POST', 'PUT', 'PATCH', 'DELETE'):
+        supplied = request.headers.get('X-CSRF-Token') or request.form.get('_csrf_token', '')
+        expected = session.get('_csrf_token', '')
+        if not supplied or not expected or not hmac.compare_digest(supplied, expected):
+            return jsonify({'status': 'error', 'message': 'CSRF validation failed. Refresh the page and try again.'}), 400
+
+@app.after_request
+def add_csrf_fields(response):
+    """Expose the token to same-origin forms and fetch calls."""
+    if response.mimetype == 'text/html' and session.get('_csrf_token'):
+        html = response.get_data(as_text=True)
+        token = session['_csrf_token']
+        meta = '<meta name="csrf-token" content="' + token + '">'
+        if '<head>' in html and 'name="csrf-token"' not in html:
+            html = html.replace('<head>', '<head>\\n    ' + meta, 1)
+        hidden = '<input type="hidden" name="_csrf_token" value="' + token + '">'
+        html = re.sub(r'(<form\\b(?=[^>]*\\bmethod=["\\']?POST)[^>]*>)', lambda m: m.group(1) + hidden, html, flags=re.IGNORECASE)
+        response.set_data(html)
+    return response
 
 # ==================== إعدادات ====================
 # Set these values in the hosting environment; never commit actual secrets.
@@ -880,7 +908,7 @@ def edit_task(tid):
         tg_send(f"✏️ <b>تم تعديل المهمة:</b> {title}")
     return redirect('/')
 
-@app.route('/toggle/<int:tid>')
+@app.route('/toggle/<int:tid>', methods=['POST'])
 @login_required
 def toggle(tid):
     task = q('SELECT * FROM tasks WHERE id=?', (tid,))
@@ -893,7 +921,7 @@ def toggle(tid):
             tg_send(f"🎉 <b>أحسنت!</b> تم: {t['title']}")
     return redirect('/')
 
-@app.route('/delete/<int:tid>')
+@app.route('/delete/<int:tid>', methods=['POST'])
 @login_required
 def delete(tid):
     task = q('SELECT title FROM tasks WHERE id=?', (tid,))
@@ -985,7 +1013,7 @@ def add_course():
         tg_send(f"📚 <b>تم إنشاء الكورس:</b> {name}\n📖 {td} جلسة | ⏱️ {total_hours} ساعة إجمالي")
     return redirect('/')
 
-@app.route('/delete_course/<int:cid>')
+@app.route('/delete_course/<int:cid>', methods=['POST'])
 @login_required
 def delete_course(cid):
     course = q('SELECT name FROM courses WHERE id=?', (cid,))
@@ -995,7 +1023,7 @@ def delete_course(cid):
         tg_send(f"🗑️ <b>تم حذف الكورس:</b> {course[0]['name']}")
     return redirect('/')
 
-@app.route('/postpone/<int:tid>/<int:minutes>')
+@app.route('/postpone/<int:tid>/<int:minutes>', methods=['POST'])
 @login_required
 def postpone(tid, minutes):
     """تأجيل مهمة بعدد دقائق مخصص من الواجهة مباشرة"""
@@ -1011,7 +1039,7 @@ def postpone(tid, minutes):
         tg_send(f"⏰ <b>تم تأجيل المهمة يدويًا:</b> {t['title']}\n🕐 {new_time.strftime('%Y-%m-%d %H:%M')}")
     return redirect('/')
 
-@app.route('/duplicate/<int:tid>')
+@app.route('/duplicate/<int:tid>', methods=['POST'])
 @login_required
 def duplicate_task(tid):
     """تكرار مهمة موجودة (مفيد للمهام المتكررة)"""
@@ -1036,7 +1064,7 @@ def api_stats():
         'rate': round((completed/total*100) if total > 0 else 0, 1),
     })
 
-@app.route('/send_test')
+@app.route('/send_test', methods=['POST'])
 @login_required
 def send_test():
     now = datetime.now()
@@ -1065,7 +1093,7 @@ def send_test():
     ok = tg_send(msg, {'inline_keyboard': [[{'text': '✅ استلمت', 'callback_data': 'test_ok'}]]})
     return jsonify({"status": "success" if ok else "error", "scheduler": _scheduler_started, "pending": pending_tasks})
 
-@app.route('/force_check')
+@app.route('/force_check', methods=['POST'])
 @login_required
 def force_check():
     """تشغيل check_notifications فورًا من المتصفح للتأكد"""
@@ -1342,10 +1370,10 @@ HTML = '''
                     </div>
                     <div style="display:flex;gap:6px;flex-wrap:wrap">
                         <a href="#" class="btn btn-sm btn-p" title="تعديل" onclick="openEditModal({{ task.id }});return false;">✏️</a>
-                        <a href="/postpone/{{ task.id }}/10" class="btn btn-sm btn-w" title="أجل 10 دقائق">⏰ +10د</a>
-                        <a href="/duplicate/{{ task.id }}" class="btn btn-sm btn-p" title="تكرار المهمة">📑</a>
-                        <a href="/toggle/{{ task.id }}" class="btn btn-sm {{ 'btn-s' if not task.is_done else 'btn-w' }}">{{ '✅' if not task.is_done else '↩️' }}</a>
-                        <a href="/delete/{{ task.id }}" class="btn btn-sm btn-d" onclick="return confirm('حذف؟')">🗑️</a>
+                        <form method="POST" action="/postpone/{{ task.id }}/10" style="display:inline"><button class="btn btn-sm btn-w" title="أجل 10 دقائق" type="submit">⏰ +10د</button></form>
+                        <form method="POST" action="/duplicate/{{ task.id }}" style="display:inline"><button class="btn btn-sm btn-p" title="تكرار المهمة" type="submit">📑</button></form>
+                        <form method="POST" action="/toggle/{{ task.id }}" style="display:inline"><button class="btn btn-sm {{ 'btn-s' if not task.is_done else 'btn-w' }}" type="submit">{{ '✅' if not task.is_done else '↩️' }}</button></form>
+                        <form method="POST" action="/delete/{{ task.id }}" style="display:inline" onsubmit="return confirm('حذف؟')"><button class="btn btn-sm btn-d" type="submit">🗑️</button></form>
                     </div>
                 </div>
                 {% else %}
@@ -1396,9 +1424,9 @@ HTML = '''
                         </div>
                         <div style="display:flex;gap:6px;flex-wrap:wrap">
                             <a href="#" class="btn btn-sm btn-p" title="تعديل" onclick="openEditModal({{ task.id }});return false;">✏️</a>
-                            <a href="/duplicate/{{ task.id }}" class="btn btn-sm btn-p" title="تكرار المهمة">📑</a>
-                            <a href="/toggle/{{ task.id }}" class="btn btn-sm {{ 'btn-s' if not task.is_done else 'btn-w' }}">{{ '✅' if not task.is_done else '↩️' }}</a>
-                            <a href="/delete/{{ task.id }}" class="btn btn-sm btn-d" onclick="return confirm('حذف؟')">🗑️</a>
+                            <form method="POST" action="/duplicate/{{ task.id }}" style="display:inline"><button class="btn btn-sm btn-p" title="تكرار المهمة" type="submit">📑</button></form>
+                            <form method="POST" action="/toggle/{{ task.id }}" style="display:inline"><button class="btn btn-sm {{ 'btn-s' if not task.is_done else 'btn-w' }}" type="submit">{{ '✅' if not task.is_done else '↩️' }}</button></form>
+                            <form method="POST" action="/delete/{{ task.id }}" style="display:inline" onsubmit="return confirm('حذف؟')"><button class="btn btn-sm btn-d" type="submit">🗑️</button></form>
                         </div>
                     </div>
                     {% else %}
@@ -1422,7 +1450,7 @@ HTML = '''
                                 <span>⏰ تخلص: {{ task.should_finish_at[:16] if task.should_finish_at else '؟' }}</span>
                             </div>
                         </div>
-                        <a href="/toggle/{{ task.id }}" class="btn btn-sm btn-s">✅ خلصت</a>
+                        <form method="POST" action="/toggle/{{ task.id }}" style="display:inline"><button class="btn btn-sm btn-s" type="submit">✅ خلصت</button></form>
                     </div>
                     {% endfor %}
                 {% else %}
@@ -1447,7 +1475,7 @@ HTML = '''
                         <div class="pbar"><div class="pbar-fill" style="width:{{ course.progress }}%"></div></div>
                         <div class="fb" style="margin-top:10px">
                             <small style="color:var(--text-dim)">📅 {{ course.total_days }} يوم | 📚 {{ course.total_hours }} ساعة | 🎯 {{ course.progress }}%</small>
-                            <a href="/delete_course/{{ course.id }}" class="btn btn-sm btn-d" onclick="return confirm('حذف الكورس وكل جلساته؟')">🗑️</a>
+                            <form method="POST" action="/delete_course/{{ course.id }}" style="display:inline" onsubmit="return confirm('حذف الكورس وكل جلساته؟')"><button class="btn btn-sm btn-d" type="submit">🗑️</button></form>
                         </div>
                         <div class="alert ai" style="margin-top:12px;margin-bottom:0;font-size:.8rem;line-height:1.9">
                             📅 <b>اتعدى:</b> {{ course.live.days_elapsed }}/{{ course.live.total_days }} يوم<br>
@@ -1763,7 +1791,7 @@ HTML = '''
 
         function testBot(){
             document.getElementById('tr').innerHTML='<div class="alert ai">⏳ جاري التشخيص...</div>';
-            fetch('/send_test').then(r=>r.json()).then(d=>{
+            fetch('/send_test', {method:'POST', headers:{'X-CSRF-Token':document.querySelector('meta[name="csrf-token"]').content}}).then(r=>r.json()).then(d=>{
                 document.getElementById('tr').innerHTML = d.status==='success'
                     ?`<div class="alert as">✅ تم إرسال تقرير التشخيص! تفقد تيليجرام<br>Scheduler: ${d.scheduler?'✅ شغال':'❌ مش شغال'} | معلق: ${d.pending}</div>`
                     :'<div class="alert ai">❌ فشل إرسال تيليجرام - تأكد من BOT_TOKEN و CHAT_ID</div>';
@@ -1771,7 +1799,7 @@ HTML = '''
         }
         function forceCheck(){
             document.getElementById('tr').innerHTML='<div class="alert ai">⏳ جاري الفحص الفوري...</div>';
-            fetch('/force_check').then(r=>r.json()).then(d=>{
+            fetch('/force_check', {method:'POST', headers:{'X-CSRF-Token':document.querySelector('meta[name="csrf-token"]').content}}).then(r=>r.json()).then(d=>{
                 document.getElementById('tr').innerHTML=`<div class="alert ${d.status==='ok'?'as':'ai'}">${d.status==='ok'?'✅':'❌'} ${d.msg}</div>`;
             });
         }
