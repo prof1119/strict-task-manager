@@ -1844,7 +1844,7 @@ HTML = '''
             document.getElementById('clearMsg').innerHTML='<span style="color:var(--neon-p)">⏳ جاري المسح...</span>';
             var fd = new FormData();
             fd.append('confirm_password', pw);
-            fetch('/clear_all/' + _clearSection, {method:'POST', body:fd})
+            fetch('/clear_all/' + _clearSection, {method:'POST', body:fd, headers:{'X-CSRF-Token':document.querySelector('meta[name="csrf-token"]').content}})
                 .then(function(r){ return r.json(); })
                 .then(function(d){
                     if(d.status === 'ok'){
