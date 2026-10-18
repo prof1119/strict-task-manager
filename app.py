@@ -1933,4 +1933,6 @@ if __name__ == '__main__':
     print("📱 http://127.0.0.1:5000")
     print("="*60 + "\n")
     
-    app.run(debug=False, host='0.0.0.0', port=5000)
+    host = os.environ.get('HOST', '127.0.0.1')
+    port = int(os.environ.get('PORT', '5000'))
+    app.run(debug=False, host=host, port=port)
