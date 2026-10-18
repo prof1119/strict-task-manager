@@ -2,7 +2,7 @@
 
 A personal task and study planner built with **Flask, SQLite, and APScheduler**, with an Arabic RTL interface and optional Telegram reminders.
 
-> **Status:** Personal-use project under active improvement. Security and deployment hardening are ongoing; do not expose it publicly until you have reviewed authentication, CSRF protection, and background-job deployment.
+> **Status:** Personal-use project under active improvement. Security and deployment hardening are ongoing; do not expose it publicly until you have reviewed authentication, input validation, and background-job deployment.
 
 <p align="center">
   <img alt="Python" src="https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white">
@@ -103,8 +103,8 @@ A `.env.example` file documents the variable names. It is a template only, not a
 
 ## 🗺️ Next improvements
 
-- Add CSRF protection and convert state-changing routes to POST requests.
-- Add automated tests for task/course CRUD and reminder scheduling.
+- Add automated tests for task/course CRUD, CSRF enforcement, and reminder scheduling.
+- Add stricter validation for numeric and date inputs.
 - Separate the scheduler and Telegram polling into a dedicated worker process.
 - Split the large application module into routes, services, and database modules.
 - Add a deployment guide and a health-check endpoint.
