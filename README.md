@@ -90,7 +90,6 @@ Set these environment variables in your terminal or hosting provider:
 - `CITY`, `PRAYER_LAT`, `PRAYER_LNG`, `PRAYER_METHOD`: configure the prayer-time location and calculation method. The fallback is Cairo; set the intended city explicitly.
 - `HOST` and `PORT`: optional bind address and port. The default host is `127.0.0.1` for local-only access.
 - `CITY`, `PRAYER_LAT`, `PRAYER_LNG`, `PRAYER_METHOD`: configure the location and calculation method used for prayer times. The fallback is Cairo; set the intended city explicitly.
-- `HOST` and `PORT`: optional bind address and port. The default host is `127.0.0.1` for local-only access.
 - `COOKIE_SECURE`: set to `1` when served over HTTPS. Leave unset for local HTTP development.
 
 A `.env.example` file documents the variable names. It is a template only, not a secrets store. The app does not automatically load a `.env` file, so configure variables in your shell or hosting dashboard.
